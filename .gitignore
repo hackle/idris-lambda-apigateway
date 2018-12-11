@@ -1,2 +1,6 @@
 *.ibc
 *.o
+.DS_Store
+.bash_history
+*.zip
+bootstrap
