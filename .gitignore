@@ -6,3 +6,4 @@
 bootstrap
 echo
 idris-http/
+idris-json-decode/
