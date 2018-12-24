@@ -95,6 +95,19 @@ record ProxyRequestContext where
   -- prcAuthorizer   : Maybe Authorizer
 
 decodeProxyRequestContext : Decoder ProxyRequestContext
+decodeProxyRequestContext obj@(JObject _) =
+  MkProxyRequestContext
+  <$> decodeJSON (field "path" (Decode.maybe string)) obj
+  <*> decodeJSON (field "accountId" string) obj
+  <*> decodeJSON (field "resourceId" string) obj
+  <*> decodeJSON (field "stage" string) obj
+  <*> decodeJSON (field "requestId" string) obj
+  <*> decodeJSON (field "identity" decodeRequestIdentity) obj
+  <*> decodeJSON (field "resourcePath" string) obj
+  <*> decodeJSON (field "httpMethod" string) obj
+  <*> decodeJSON (field "apiId" string) obj
+  <*> decodeJSON (field "protocol" string) obj
+decodeProxyRequestContext json = error "ProxyRequestContext" json
 
 record APIGatewayProxyRequest body where
   constructor MkAPIGatewayProxyRequest
