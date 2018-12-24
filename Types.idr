@@ -31,6 +31,8 @@ import Language.JSON.Data
 import Http
 import Http.Request
 
+%access export
+
 record RequestIdentity where
   constructor MkRequestIdentity
   riCognitoIdentityPoolId         : Maybe String
@@ -243,7 +245,3 @@ To treat the body as a stringified embedded JSON value, use @Embedded a@, where 
 appropriate @FromJSON@ or @ToJSON@ instances.
 To treat the body as base 64 encoded binary use @Base64@.
 -}
-apiGatewayMain :
-  (APIGatewayProxyRequest reqBody -> IO (APIGatewayProxyResponse resBody)) -- ^ Function to process the event
-  -> IO ()
--- apiGatewayMain = lambdaMain

@@ -6,18 +6,10 @@ import Rest
 import Http.Error
 import Http.Response
 import Http
-
-record Context where
-  constructor MkContext
-  runTimeApi: string
-
-data InfIO : Type where
-  Do : IO a -> (a -> Inf InfIO) -> InfIO
-
-runInfIO : InfIO -> IO ()
-runInfIO (Do action cont) = do
-  res <- action
-  runInfIO (cont res)
+import Handler
+import Decode
+import Types
+import Language.JSON.Data
 
 runTimeApiKey : String
 runTimeApiKey = "AWS_LAMBDA_RUNTIME_API"
@@ -25,13 +17,8 @@ runTimeApiKey = "AWS_LAMBDA_RUNTIME_API"
 escape : String -> String
 escape x = concat $ intersperse "\\\"" $ split (== '"') x
 
-executeWith : EndPoint -> (body : String) -> IO ()
-executeWith endpoint body = do
-  -- execAndReadOutput $ "curl -X POST \"http://" ++ host ++ ":" ++ show port ++ path ++ "\"  -d \"YO BRO\""
-  -- -- post endpoint "blah" empty
-  -- pure ()
-  -- putStrLn $ "posting to " ++ (epPath endpoint)
-  -- response <- execAndReadOutput $ "echo \"" ++ escape body ++ "\""
+postBack : EndPoint -> (body : String) -> IO ()
+postBack endpoint body = do
   case !(post endpoint body empty) of
     (Left (HttpSocketError x)) => putStrLn $ "Socket Error when responding: " ++ show x
     (Left (HttpParseError x)) => putStrLn $ "Parse Error when responding: " ++ show x
@@ -54,9 +41,13 @@ handleEvent : String -> Int -> Response String -> IO ()
 handleEvent host port response = do
   case getHeader response "Lambda-Runtime-Aws-Request-Id" of
     Nothing => putStrLn "No request Id found"
-    Just reqId => do
-      let endpoint = (MkEndPoint host port $ "/2018-06-01/runtime/invocation/" ++ reqId ++ "/response")
-      executeWith endpoint (responseBody response)
+    Just reqId =>
+      case decodeString decodeAPIGatewayProxyRequest (responseBody response) of
+        Left err => putStrLn err
+        Right apiRequest => do
+          apiResponse <- handler apiRequest
+          let endpoint = (MkEndPoint host port $ "/2018-06-01/runtime/invocation/" ++ reqId ++ "/response")
+          postBack endpoint (show $ encodeAPIGatewayProxyResponse apiResponse)
 
 processEvent : String -> Int -> IO ()
 processEvent host port = do
@@ -72,8 +63,6 @@ runLoop : String -> Int -> Nat -> IO ()
 runLoop _ _ Z = pure ()
 runLoop host port (S n) = do
   processEvent host port
-  putStrLn "sleeping now"
-  usleep 500
   runLoop host port n
 
 main : IO ()
