@@ -1,8 +1,11 @@
 import Decode
 
 import Language.JSON
+import Types
 
-||| Decode a JString
-string1 : Decoder String
-string1 (JString str) = Right str
-string1 json = Left "string"
+main : IO ()
+main = do
+  Right content <- readFile "sampleApiRequest.txt" | Left _ => putStrLn "Cannot open file"
+  case decodeString decodeAPIGatewayProxyRequest content of
+    Left err => putStrLn err
+    Right request => putStrLn $ "success"

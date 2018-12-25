@@ -27,9 +27,7 @@ module Types
 import Decode
 import Language.JSON
 import Language.JSON.Data
--- import Lightyear.Core
-import Http
-import Http.Request
+import Data.SortedMap
 
 %access export
 
@@ -56,17 +54,17 @@ record RequestIdentity where
 decodeRequestIdentity : Decoder RequestIdentity
 decodeRequestIdentity jobj@(JObject obj) =
       Right MkRequestIdentity <*>
-        decodeJSON (field "cognitoIdentityPoolId" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "accountId" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "cognitoIdentityId" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "caller" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "apiKey" (Decode.maybe string)) jobj <*>
+        decodeJSON (Decode.maybe (field "cognitoIdentityPoolId" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "accountId" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "cognitoIdentityId" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "caller" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "apiKey" string)) jobj <*>
         -- (decodeJSON (field (maybe string))  "sourceIp" >>= traverse (readParse "IP address")) obj <*>
-        decodeJSON (field "cognitoAuthenticationType" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "cognitoAuthenticationProvider" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "userArn" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "userAgent" (Decode.maybe string)) jobj <*>
-        decodeJSON (field "user" (Decode.maybe string)) jobj
+        decodeJSON (Decode.maybe (field "cognitoAuthenticationType" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "cognitoAuthenticationProvider" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "userArn" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "userAgent" string)) jobj <*>
+        decodeJSON (Decode.maybe (field "user" string)) jobj
 decodeRequestIdentity json = error "RequestIdentity" json
 
 -- data Authorizer = Authorizer
@@ -99,7 +97,7 @@ record ProxyRequestContext where
 decodeProxyRequestContext : Decoder ProxyRequestContext
 decodeProxyRequestContext obj@(JObject _) =
   MkProxyRequestContext
-  <$> decodeJSON (field "path" (Decode.maybe string)) obj
+  <$> decodeJSON (Decode.maybe (field "path" string)) obj
   <*> decodeJSON (field "accountId" string) obj
   <*> decodeJSON (field "resourceId" string) obj
   <*> decodeJSON (field "stage" string) obj
@@ -116,10 +114,10 @@ record APIGatewayProxyRequest body where
   agprqResource              : String
   agprqPath                  : String
   agprqHttpMethod            : String
-  agprqHeaders               : SortedMap String String
-  agprqQueryStringParameters : SortedMap String String
-  agprqPathParameters        : SortedMap String String
-  agprqStageVariables        : SortedMap String String
+  agprqHeaders               : Maybe (SortedMap String String)
+  agprqQueryStringParameters : Maybe (SortedMap String String)
+  agprqPathParameters        : Maybe (SortedMap String String)
+  agprqStageVariables        : Maybe (SortedMap String String)
   agprqRequestContext        : ProxyRequestContext
   agprqBody                  : Maybe body
 
@@ -129,12 +127,12 @@ decodeAPIGatewayProxyRequest obj@(JObject _) =
       <$> decodeJSON (field "resource" string) obj
       <*> decodeJSON (field "path" string) obj
       <*> decodeJSON (field "httpMethod" string) obj
-      <*> (SortedMap.fromList <$> (decodeJSON (field "headers" (keyValuePairs string)) obj))
-      <*> (SortedMap.fromList <$> (decodeJSON (field "queryStringParameters" (keyValuePairs string)) obj))
-      <*> (SortedMap.fromList <$> (decodeJSON (field "pathParameters" (keyValuePairs string)) obj))
-      <*> (SortedMap.fromList <$> (decodeJSON (field "stageVariables" (keyValuePairs string)) obj))
+      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "headers" (keyValuePairs string))) obj))
+      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "queryStringParameters" (keyValuePairs string))) obj))
+      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "pathParameters" (keyValuePairs string))) obj))
+      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "stageVariables" (keyValuePairs string))) obj))
       <*> decodeJSON (field "requestContext" decodeProxyRequestContext) obj
-      <*> decodeJSON (field "body" (Decode.maybe string)) obj
+      <*> decodeJSON (Decode.maybe (field "body" string)) obj
 decodeAPIGatewayProxyRequest json = error "APIGatewayProxyRequest" json
     -- where
     --   -- Explicit type signatures so that we don't accidentally tell Aeson
@@ -169,6 +167,8 @@ record APIGatewayProxyResponse body where
   agprsBody       : Maybe body
 
 encodeMap : SortedMap String String -> JSON
+encodeMap m = JObject $ mapOne <$> toList m where
+  mapOne (k, v) = (k, JString v)
 
 encodeAPIGatewayProxyResponse : APIGatewayProxyResponse String -> JSON
 encodeAPIGatewayProxyResponse resp =
