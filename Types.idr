@@ -127,12 +127,17 @@ decodeAPIGatewayProxyRequest obj@(JObject _) =
       <$> decodeJSON (field "resource" string) obj
       <*> decodeJSON (field "path" string) obj
       <*> decodeJSON (field "httpMethod" string) obj
-      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "headers" (keyValuePairs string))) obj))
-      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "queryStringParameters" (keyValuePairs string))) obj))
-      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "pathParameters" (keyValuePairs string))) obj))
-      <*> ((SortedMap.fromList <$>) <$> (decodeJSON (Decode.maybe (field "stageVariables" (keyValuePairs string))) obj))
+      <*> maybeMap obj "headers"
+      <*> maybeMap obj "queryStringParameters"
+      <*> maybeMap obj "pathParameters"
+      <*> maybeMap obj "stageVariables"
       <*> decodeJSON (field "requestContext" decodeProxyRequestContext) obj
       <*> decodeJSON (Decode.maybe (field "body" string)) obj
+      where
+        maybeMap : JSON -> String -> Either String (Maybe (SortedMap String String))
+        maybeMap obj fieldName =
+          let decoded = decodeJSON (Decode.maybe (field fieldName (keyValuePairs string))) obj in
+              (SortedMap.fromList <$>) <$> decoded
 decodeAPIGatewayProxyRequest json = error "APIGatewayProxyRequest" json
     -- where
     --   -- Explicit type signatures so that we don't accidentally tell Aeson
