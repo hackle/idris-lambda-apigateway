@@ -1,6 +1,7 @@
 module Contents
 
 import Data.String.Extra
+import Language.JSON
 
 %access public export
 
@@ -31,11 +32,41 @@ about = MkBlogPost "About Hackle's blog" "about.md"
 siteContents : List BlogPost
 siteContents = about::contents
 
+private
 getSlug : BlogPost -> String
 getSlug bp = dropLast 3 $ path bp
 
-getContentBySlug : String -> IO String
-getContentBySlug slug = do
+findPostBySlug : String -> BlogPost
+findPostBySlug slug =
+  case List.find eqSlug siteContents of
+    Nothing => head contents
+    Just p => p
+where
+  eqSlug : BlogPost -> Bool
+  eqSlug p = slug == getSlug p
+
+getContent : BlogPost -> IO String
+getContent (MkBlogPost _ path) = do
   cd <- currentDir
-  Right content <- readFile $ cd ++ "/raw/" ++ slug ++ ".md" | Left err => pure (show err)
+  let fullPath = cd ++ "/raw/" ++ path
+  Right content <- readFile fullPath  | Left err => pure ("not found " ++ fullPath ++ show err)
   pure content
+
+record BlogResponse where
+  constructor MkBlogResponse
+  title, content : String
+  posts : List BlogPost
+
+encodeBlogResponse : BlogResponse -> JSON
+encodeBlogResponse resp =
+  JObject [
+    ("title", JString $ title resp)
+    , ("content", JString $ content resp)
+    , ("posts", JArray $ map toPost $ posts resp)
+  ]
+  where
+    toPost : BlogPost -> JSON
+    toPost bp = JObject [
+      ("title", JString $ title bp)
+      , ("path", JString $ getSlug bp)
+    ]

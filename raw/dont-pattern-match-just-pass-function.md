@@ -14,7 +14,7 @@ now try to load this up in `GHCI` with the `-W` option to turn on warnings.
 
 ```haskell
 *Main> :set -W
-*Main> :l pattern-matching.hs 
+*Main> :l pattern-matching.hs
 [1 of 1] Compiling Main             ( pattern-matching.hs, interpreted )
 
 pattern-matching.hs:2:1: warning: [-Wincomplete-patterns]
@@ -38,8 +38,8 @@ To consume this function, suppose we have another function `makeMaybe`.
 
 ```haskell
 makeMaybe : String -> Maybe String
-makeMaybe s = if s == "Nothing" 
-                    then Nothing 
+makeMaybe s = if s == "Nothing"
+                    then Nothing
                     else Just s
 ```
 
@@ -100,7 +100,7 @@ See the pattern (pun intended) there? Sure we `C#` programmers do null checks a 
 
 The question is - if this is the equivalence of pattern matching in `C#`, then what's it like to pass in functions? As you've guessed, first there is `UseString`.
 
-```csharp	
+```csharp
 static T UseString<T>(string str, Func<String, T> onValid, T onNull)
 {
     if (str == null)
@@ -141,7 +141,7 @@ static int GetLengthCps(string str)
 }
 ```
 
-No more null check! We just need to pass a function (and a default value `0`) to `UseString`, because there is guarantee from `UseString` that the `onValid` function will always act on a valid string, and in the case that the string is null, `onNull` will be returned. 
+No more null check! We just need to pass a function (and a default value `0`) to `UseString`, because there is guarantee from `UseString` that the `onValid` function will always act on a valid string, and in the case that the string is null, `onNull` will be returned.
 
 ## summary
 Very simple trick inspired by Erik Meijer's "hatred" towards pattern matching. In languages with support for exhaustive pattern matching this may only be a choice of programming style as either way we can get strong confidence. However, in main stream imperative languages like C#, this pattern can be very handy as it saves us the pain of null checks, or worse, the pain of forgetting to do so.
@@ -150,6 +150,6 @@ There are options to make this pattern more generic so we don't need to make `Us
 
 It's also possible to make this more fluent with extension methods.
 
-Of course one naturally runs into the problem of `void` not being a real type - but I'll leave all these to you to explore. 
+Of course one naturally runs into the problem of `void` not being a real type - but I'll leave all these to you to explore.
 
 Have fun hacking!

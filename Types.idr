@@ -4,7 +4,6 @@ import Decode
 import Language.JSON
 import Language.JSON.Data
 import Data.SortedMap
-import Contents
 
 %access export
 
@@ -131,23 +130,3 @@ responseNotFound = response 404
 
 responseBadRequest : APIGatewayProxyResponse body
 responseBadRequest = response 400
-
-public export
-record BlogResponse where
-  constructor MkBlogResponse
-  title, content : String
-  contents : List BlogPost
-
-encodeBlogResponse : BlogResponse -> JSON
-encodeBlogResponse resp =
-  JObject [
-    ("title", JString $ title resp)
-    , ("content", JString $ content resp)
-    , ("contents", JArray $ map toContentOne $ contents resp)
-  ]
-  where
-    toContentOne : BlogPost -> JSON
-    toContentOne bp = JObject [
-      ("title", JString $ title bp)
-      , ("path", JString $ getSlug bp)
-    ]
