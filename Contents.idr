@@ -8,9 +8,6 @@ record BlogPost where
   constructor MkBlogPost
   title, path: String
 
-getSlug : BlogPost -> String
-getSlug bp = dropLast 3 $ path bp
-
 contents : List BlogPost
 contents = reverse $ (uncurry MkBlogPost) <$> [
     ("How is this blog put together", "blog-architecture.md")
@@ -33,3 +30,12 @@ about = MkBlogPost "About Hackle's blog" "about.md"
 
 siteContents : List BlogPost
 siteContents = about::contents
+
+getSlug : BlogPost -> String
+getSlug bp = dropLast 3 $ path bp
+
+getContentBySlug : String -> IO String
+getContentBySlug slug = do
+  cd <- currentDir
+  Right content <- readFile $ cd ++ "/raw/" ++ slug ++ ".md" | Left err => pure (show err)
+  pure content
