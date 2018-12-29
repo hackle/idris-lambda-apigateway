@@ -1,11 +1,15 @@
 module Contents
 
+import Data.String.Extra
+
+%access public export
+
 record BlogPost where
   constructor MkBlogPost
   title, path: String
 
-toSlug : String -> String
-toSlug str = pack $ ((\c => if c `elem` ['a'..'z'] then c else '-').toLower) <$> unpack str
+getSlug : BlogPost -> String
+getSlug bp = dropLast 3 $ path bp
 
 contents : List BlogPost
 contents = reverse $ (uncurry MkBlogPost) <$> [
