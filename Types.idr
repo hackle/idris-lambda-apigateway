@@ -1,27 +1,3 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TemplateHaskell   #-}
-
-{-|
-Module: AWSLambda.Events.APIGateway
-Description: Types for APIGateway Lambda requests and responses
-
-Based on https://github.com/aws/aws-lambda-dotnet/tree/master/Libraries/src/Amazon.Lambda.APIGatewayEvents
-
-To enable processing of API Gateway events, use the @events@ key in
-@serverless.yml@ as usual:
-
-> functions:
->   myapifunc:
->     handler: mypackage.mypackage-exe
->     events:
->       - http:
->           path: hello/{name}
->           method: get
-
-Then use 'apiGatewayMain' in the handler to process the requests.
--}
 module Types
 
 import Decode
@@ -45,12 +21,6 @@ record RequestIdentity where
   riUserAgent                     : Maybe String
   riUser                          : Maybe String
 
--- readParse : Decoder a => String -> Parser a
--- readParse str =
---   case readMaybe str of
---     Just result => pure result
---     Nothing     => fail $ "Failed to parse an " ++ msg
-
 decodeRequestIdentity : Decoder RequestIdentity
 decodeRequestIdentity jobj@(JObject obj) =
       Right MkRequestIdentity <*>
@@ -66,19 +36,6 @@ decodeRequestIdentity jobj@(JObject obj) =
         decodeJSON (Decode.maybe (field "userAgent" string)) jobj <*>
         decodeJSON (Decode.maybe (field "user" string)) jobj
 decodeRequestIdentity json = error "RequestIdentity" json
-
--- data Authorizer = Authorizer
---   { _aPrincipalId : !(Maybe Text)
---   , _aClaims : !Object
---   , _aContext : !Object
---   } deriving (Eq, Show)
--- instance FromJSON Authorizer where
---   parseJSON = withObject "Authorizer" $ \o ->
---     Authorizer
---       <$> o .:? "principalId"
---       <*> o .:? "claims" .!= mempty
---       <*> (pure $ HashMap.delete "principalId" $ HashMap.delete "claims" o)
--- $(makeLenses ''Authorizer)
 
 record ProxyRequestContext where
   constructor MkProxyRequestContext
@@ -109,6 +66,7 @@ decodeProxyRequestContext obj@(JObject _) =
   <*> decodeJSON (field "protocol" string) obj
 decodeProxyRequestContext json = error "ProxyRequestContext" json
 
+public export
 record APIGatewayProxyRequest body where
   constructor MkAPIGatewayProxyRequest
   agprqResource              : String
@@ -139,31 +97,9 @@ decodeAPIGatewayProxyRequest obj@(JObject _) =
           let decoded = decodeJSON (Decode.maybe (field fieldName (keyValuePairs string))) obj in
               (SortedMap.fromList <$>) <$> decoded
 decodeAPIGatewayProxyRequest json = error "APIGatewayProxyRequest" json
-    -- where
-    --   -- Explicit type signatures so that we don't accidentally tell Aeson
-    --   -- to try to parse the wrong sort of structure
-    --   fromAWSHeaders : HashMap HeaderName HeaderValue -> HTTP.RequestHeaders
-    --   fromAWSHeaders = fmap toHeader . HashMap.toList
-    --     where
-    --       toHeader = bimap (CI.mk . encodeUtf8) encodeUtf8
-    --   fromAWSQuery : HashMap QueryParamName QueryParamValue -> HTTP.Query
-    --   fromAWSQuery = fmap toQueryItem . HashMap.toList
-    --     where
-    --       toQueryItem = bimap encodeUtf8 (\x -> if Text.null x then Nothing else Just . encodeUtf8 $ x)
 
--- $(makeLenses ''APIGatewayProxyRequest)
-
--- | Get the request body, if there is one
 requestBody : APIGatewayProxyRequest body -> Maybe body
 requestBody = agprqBody
-
--- | Get the embedded request body, if there is one
--- requestBodyEmbedded : Getter (APIGatewayProxyRequest (Embedded v)) (Maybe v)
--- requestBodyEmbedded = requestBody . mapping unEmbed
-
--- | Get the binary (decoded Base64) request body, if there is one
--- requestBodyBinary : Getter (APIGatewayProxyRequest Base64) (Maybe ByteString)
--- requestBodyBinary = requestBody . mapping _Base64
 
 record APIGatewayProxyResponse body where
   constructor MkAPIGatewayProxyResponse
@@ -180,24 +116,8 @@ encodeAPIGatewayProxyResponse resp =
   JObject [
     ("statusCode", JNumber $ cast $ agprsStatusCode resp)
     ,("headers", encodeMap $ agprsHeaders resp)
-    ,("body", Maybe.fromMaybe JNull (Functor.map JString $ agprsBody resp))
+    ,("body", Maybe.fromMaybe JNull (JString <$> agprsBody resp))
   ]
---
--- instance FromText body => FromJSON (APIGatewayProxyResponse body) where
---   parseJSON =
---     withObject "APIGatewayProxyResponse" $ \o ->
---       APIGatewayProxyResponse <$> o .: "statusCode" <*>
---       (fromAWSHeaders <$> o .: "headers") <*>
---       o .:? "body"
---       -- Explicit type signatures so that we don't accidentally tell Aeson
---       -- to try to parse the wrong sort of structure
---     where
---       fromAWSHeaders : HashMap HeaderName HeaderValue -> HTTP.RequestHeaders
---       fromAWSHeaders = fmap toHeader . HashMap.toList
---         where
---           toHeader = bimap (CI.mk . encodeUtf8) encodeUtf8
-
--- $(makeLenses ''APIGatewayProxyResponse)
 
 response : Int -> APIGatewayProxyResponse body
 response statusCode = MkAPIGatewayProxyResponse statusCode empty Nothing
@@ -211,42 +131,7 @@ responseNotFound = response 404
 responseBadRequest : APIGatewayProxyResponse body
 responseBadRequest = response 400
 
--- responseBody : Setter' (APIGatewayProxyResponse body) (Maybe body)
--- responseBody = agprsBody . at () . mapping unTextValue
-
--- responseBodyEmbedded : Setter' (APIGatewayProxyResponse (Embedded body)) (Maybe body)
--- responseBodyEmbedded = responseBody . mapping unEmbed
---
--- responseBodyBinary : Setter' (APIGatewayProxyResponse Base64) (Maybe ByteString)
--- responseBodyBinary = responseBody . mapping _Base64
-
-{-| Process incoming events from @serverless-haskell@ using a provided function.
-
-This is a specialisation of 'lambdaMain' for API Gateway.
-
-The handler receives the input event given to the AWS Lambda function, and
-its return value is returned from the function.
-
-This is intended to be used as @main@, for example:
-
-> import AWSLambda.Events.APIGateway
-> import Control.Lens
-> import Data.Aeson
-> import Data.Aeson.Embedded
->
-> main = apiGatewayMain handler
->
-> handler : APIGatewayProxyRequest (Embedded Value) -> IO (APIGatewayProxyResponse (Embedded [Int]))
-> handler request = do
->   putStrLn "This should go to logs"
->   print $ request ^. requestBody
->   pure $ responseOK & responseBodyEmbedded ?~ [1, 2, 3]
-
-The type parameters @reqBody@ and @resBody@ represent the types of request and response body, respectively.
-The @FromText@ and @ToText@ contraints are required because these values come from string fields
-in the request and response JSON objects.
-To get direct access to the body string, use @Text@ as the parameter type.
-To treat the body as a stringified embedded JSON value, use @Embedded a@, where @a@ has the
-appropriate @FromJSON@ or @ToJSON@ instances.
-To treat the body as base 64 encoded binary use @Base64@.
--}
+public export
+record BlogResponse where
+  constructor MkBlogResponse
+  title, content : String
